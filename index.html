@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snake</title>
+<style>
+  body{
+    margin:0; min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+    background:#111; color:#eee;
+    font:14px/1.5 system-ui, sans-serif;
+  }
+  canvas{background:#000; border:1px solid #333; touch-action:none; max-width:92vw; height:auto}
+  #info{letter-spacing:.04em}
+</style>
+</head>
+<body>
+  <canvas id="board" width="440" height="440"></canvas>
+  <div id="info">Arrows or WASD to start</div>
+
+<script>
+const COLS = 22, CELL = 20;
+const ctx = document.getElementById('board').getContext('2d');
+const info = document.getElementById('info');
+
+let snake, dir, next, food, score, timer, alive;
+
+function reset(){
+  snake = [{x:11,y:11},{x:10,y:11},{x:9,y:11},{x:8,y:11}];
+  dir = next = {x:1,y:0};
+  score = 0;
+  alive = true;
+  placeFood();
+}
+
+function placeFood(){
+  do {
+    food = { x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*COLS) };
+  } while (snake.some(s => s.x === food.x && s.y === food.y));
+}
+
+function step(){
+  dir = next;
+  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+  const hitWall = head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= COLS;
+  const hitSelf = snake.some((s,i) => i < snake.length-1 && s.x === head.x && s.y === head.y);
+  if (hitWall || hitSelf){
+    alive = false;
+    clearInterval(timer);
+    info.textContent = `Game over — score ${score}. Press any key to play again.`;
+    return;
+  }
+
+  snake.unshift(head);
+  if (head.x === food.x && head.y === food.y){ score++; placeFood(); }
+  else snake.pop();
+
+  info.textContent = 'Score ' + score;
+  draw();
+}
+
+function draw(){
+  ctx.clearRect(0,0,COLS*CELL,COLS*CELL);
+  ctx.fillStyle = '#e4572e';
+  ctx.fillRect(food.x*CELL+3, food.y*CELL+3, CELL-6, CELL-6);
+  ctx.fillStyle = '#eee';
+  snake.forEach(s => ctx.fillRect(s.x*CELL+1, s.y*CELL+1, CELL-2, CELL-2));
+}
+
+function start(){
+  reset();
+  draw();
+  clearInterval(timer);
+  timer = setInterval(step, 110);
+}
+
+function turn(x, y){
+  if (dir.x === -x && dir.y === -y) return;   // no instant reverse
+  next = {x, y};
+}
+
+const keys = {
+  ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0],
+  w:[0,-1], s:[0,1], a:[-1,0], d:[1,0]
+};
+
+addEventListener('keydown', e => {
+  const k = keys[e.key] || keys[e.key.toLowerCase()];
+  if (k) e.preventDefault();
+  if (!alive || !timer){ start(); }
+  if (k) turn(k[0], k[1]);
+});
+
+// swipe support
+let t0 = null;
+addEventListener('pointerdown', e => t0 = {x:e.clientX, y:e.clientY});
+addEventListener('pointerup', e => {
+  if (!t0) return;
+  const dx = e.clientX - t0.x, dy = e.clientY - t0.y;
+  t0 = null;
+  if (Math.hypot(dx,dy) < 24) return;
+  if (!alive || !timer) start();
+  Math.abs(dx) > Math.abs(dy) ? turn(Math.sign(dx),0) : turn(0,Math.sign(dy));
+});
+
+reset();
+draw();
+</script>
+</body>
+</html>
